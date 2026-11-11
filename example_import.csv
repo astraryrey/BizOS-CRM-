@@ -1,0 +1,6 @@
+Full name;Mobile number;Vehicle;Address;Notes
+Igor Petrenko;+380 (67) 123-45-67;Toyota Camry AA1111BB;Sadova St 12;regular customer
+Marina Koval;0501234567;VW Passat AA2222CC;Nauky Ave 40;
+Oleg Shevchenko;+380671234567;Skoda Fabia AA3333DD;Lisova St 5;duplicate of the number above
+Anna Bondarenko;380931112233;Kia Rio AA4444EE;Druzhby Blvd 7;10% discount
+No phone here;;Ford Focus;;malformed row
