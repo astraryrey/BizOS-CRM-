@@ -1,0 +1,20 @@
+# Local Asterisk sandbox.  Run with: docker compose up
+# macOS note: Docker Desktop does not support network_mode host, so the
+# ports are published explicitly.
+services:
+  asterisk:
+    image: andrius/asterisk:20-current
+    container_name: bizos-asterisk
+    restart: unless-stopped
+    ports:
+      - "5060:5060/udp"                 # SIP signalling
+      - "10000-10020:10000-10020/udp"   # RTP (audio)
+    volumes:
+      - ./asterisk/pjsip.conf:/etc/asterisk/pjsip.conf:ro
+      - ./asterisk/extensions.conf:/etc/asterisk/extensions.conf:ro
+      - ./asterisk/rtp.conf:/etc/asterisk/rtp.conf:ro
+      - ./asterisk/modules.conf:/etc/asterisk/modules.conf:ro
+      - ./asterisk/logger.conf:/etc/asterisk/logger.conf:ro
+    extra_hosts:
+      # So the container can reach uvicorn running on the host
+      - "host.docker.internal:host-gateway"
