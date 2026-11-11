@@ -1,0 +1,19 @@
+# Production-style stack. For a demo on a laptop use ./run_demo.sh instead.
+services:
+  api:
+    build: .
+    ports: ["8000:8000"]
+    environment:
+      - DATABASE_URL=postgresql+psycopg://bizos:bizos@db/bizos
+      - BILLING_ADAPTER=null
+      - MAPS_ADAPTER=null
+    depends_on: [db]
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: bizos
+      POSTGRES_PASSWORD: bizos
+      POSTGRES_DB: bizos
+    volumes: ["pgdata:/var/lib/postgresql/data"]
+volumes:
+  pgdata:
