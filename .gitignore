@@ -1,0 +1,36 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# --- Local database (contains real customer data - never publish) ---
+*.db
+*.sqlite
+*.sqlite3
+
+# --- Secrets ---
+.env
+*.pem
+*.key
+
+# --- Editors ---
+.idea/
+.vscode/
+*.swp
+
+# --- macOS ---
+.DS_Store
+.AppleDouble
+Icon?
+
+# --- Archives / build output ---
+*.zip
+*.tar.gz
+dist/
+build/
+
+# --- Logs ---
+*.log
