@@ -1,0 +1,1092 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BizOS - operator console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+:root{
+  --ink:#171A17; --ink-soft:#5C635A; --ink-faint:#8B9186;
+  --ground:#E6E8E1; --paper:#FBFBF8;
+  --rule:#C9CCC2; --rule-soft:#DEE0D8;
+  --pine:#2E5B4C; --brick:#A63A2B; --mustard:#937019; --slate:#3B4A54;
+  --hour:58px;
+  --sans:'IBM Plex Sans',system-ui,-apple-system,sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{font-family:var(--sans);background:var(--ground);color:var(--ink);
+  font-size:14px;line-height:1.45;-webkit-font-smoothing:antialiased}
+button,input,select{font-family:inherit;font-size:inherit;color:inherit}
+button{cursor:pointer;border:none;background:none}
+:focus-visible{outline:2px solid var(--pine);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+.eyebrow{font-size:10px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--ink-faint);font-weight:600}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+
+/* ----------------------------------------------------------------- top bar */
+.topbar{display:flex;align-items:center;gap:18px;flex-wrap:wrap;
+  padding:10px 18px;background:var(--ink);color:#EDEFE9;
+  border-bottom:3px solid var(--pine)}
+.brand{display:flex;align-items:baseline;gap:9px}
+.brand b{font-size:15px;letter-spacing:.04em;font-weight:700}
+.brand span{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#8C948A}
+.tenant-tabs{display:flex;gap:2px}
+.tenant-tabs button{padding:6px 13px;color:#A9B0A6;border-radius:2px;
+  font-size:13px;font-weight:500;white-space:nowrap}
+.tenant-tabs button:hover{color:#EDEFE9;background:#262A26}
+.tenant-tabs button[aria-pressed="true"]{background:var(--pine);color:#fff}
+.viewtabs{display:flex;gap:2px;margin-left:8px}
+.viewtabs button{padding:6px 12px;color:#A9B0A6;border-radius:2px;font-size:13px}
+.viewtabs button:hover{color:#EDEFE9;background:#262A26}
+.viewtabs button[aria-pressed="true"]{color:#EDEFE9;box-shadow:inset 0 -2px 0 var(--brick)}
+.clockbox{display:flex;align-items:center;gap:10px;margin-left:auto}
+.clockbox .vtime{font-family:var(--mono);font-size:15px;font-weight:500;color:#EDEFE9}
+.jump{display:flex;gap:2px}
+.jump button{padding:5px 9px;background:#262A26;color:#C3C9BF;border-radius:2px;
+  font-family:var(--mono);font-size:12px}
+.jump button:hover{background:var(--pine);color:#fff}
+.wsdot{display:inline-block;width:7px;height:7px;border-radius:50%;
+  background:var(--rule);margin-right:5px}
+.wsdot.on{background:#7FB069}
+
+/* ------------------------------------------------------------------ shell */
+.shell{display:grid;grid-template-columns:322px 1fr;height:calc(100vh - 53px)}
+@media(max-width:900px){.shell{grid-template-columns:1fr;height:auto}}
+.rail{background:var(--paper);border-right:1px solid var(--rule);
+  overflow-y:auto;display:flex;flex-direction:column}
+.stage{overflow:auto;padding:0 0 40px;position:relative}
+.panel{padding:15px 16px;border-bottom:1px solid var(--rule-soft)}
+.panel h2{font-size:10px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--ink-faint);font-weight:600;margin-bottom:11px}
+
+/* ---------------------------------------------------------------- controls */
+.btn{padding:9px 14px;background:var(--pine);color:#fff;border-radius:3px;
+  font-weight:600;font-size:13px;width:100%}
+.btn:hover{background:#25493D}
+.btn.ghost{background:transparent;color:var(--pine);box-shadow:inset 0 0 0 1px var(--rule)}
+.btn.ghost:hover{background:#EFF2ED}
+.btn.brick{background:var(--brick)}
+.btn.brick:hover{background:#8E3025}
+.btn.sm{padding:6px 10px;font-size:12px;width:auto}
+.field{width:100%;padding:8px 10px;border:1px solid var(--rule);
+  border-radius:3px;background:#fff;margin-bottom:8px}
+.field:focus{border-color:var(--pine);outline:none}
+label.lbl{display:block;font-size:11px;color:var(--ink-soft);margin-bottom:3px;font-weight:500}
+
+.hitlist{list-style:none;max-height:212px;overflow-y:auto;margin:-4px -4px 0}
+.hitlist li button{width:100%;text-align:left;padding:7px 8px;border-radius:3px;
+  display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.hitlist li button:hover{background:#EFF2ED}
+.hitlist .nm{font-weight:500}
+.hitlist .ph{font-family:var(--mono);font-size:11px;color:var(--ink-faint)}
+
+.card-head{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:3px}
+.card-head b{font-size:17px;font-weight:600}
+.card-phone{font-family:var(--mono);font-size:13px;color:var(--pine);font-weight:500}
+.card-addr{font-size:12px;color:var(--ink-soft);margin-top:2px}
+.card-note{font-size:12px;color:var(--ink-soft);background:#F1F3EE;
+  padding:6px 8px;border-radius:3px;margin-top:8px;border-left:2px solid var(--mustard)}
+.subhead{margin:14px 0 6px}
+.asset{border:1px solid var(--rule-soft);border-radius:3px;
+  padding:8px 10px;margin-bottom:6px;background:#fff}
+.asset .t{font-weight:600;font-size:13px}
+.asset .a{font-family:var(--mono);font-size:11px;color:var(--ink-soft);margin-top:2px}
+.hist{list-style:none}
+.hist li{display:flex;gap:9px;align-items:baseline;padding:5px 0;
+  border-bottom:1px dotted var(--rule-soft);font-size:12px}
+.hist .d{font-family:var(--mono);color:var(--ink-faint);white-space:nowrap;font-size:11px}
+.hist .s{flex:1}
+.dot{display:inline-block;width:7px;height:7px;border-radius:50%;flex:none}
+.dot.scheduled{background:var(--mustard)}
+.dot.confirmed{background:var(--pine)}
+.dot.done{background:var(--slate)}
+.dot.cancelled,.dot.no_show{background:var(--rule)}
+
+/* ------------------------------------------------------------ stage header */
+.stage-head{display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+  padding:13px 18px;background:var(--paper);
+  border-bottom:1px solid var(--rule);position:sticky;top:0;z-index:30}
+.daynav{display:flex;align-items:center;gap:6px}
+.daynav button{width:28px;height:28px;border-radius:3px;
+  box-shadow:inset 0 0 0 1px var(--rule);font-size:15px;line-height:1;color:var(--ink-soft)}
+.daynav button:hover{background:#EFF2ED;color:var(--ink)}
+.daylabel{font-weight:600;font-size:15px;min-width:172px}
+.daylabel .wd{color:var(--ink-faint);font-weight:400}
+.legend{display:flex;gap:13px;margin-left:auto;flex-wrap:wrap}
+.legend span{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--ink-soft)}
+
+/* ------------------------------------------------------------------- GRID */
+.grid-wrap{padding:0 18px}
+.grid{display:grid;position:relative;background:var(--paper);
+  border:1px solid var(--rule);border-top:none}
+.col-head{position:sticky;top:55px;z-index:20;background:var(--paper);
+  border-bottom:1px solid var(--rule);padding:9px 10px;
+  border-left:1px solid var(--rule-soft)}
+.col-head:first-child{border-left:none}
+.col-head .rname{font-weight:600;font-size:13px}
+.col-head .rrole{font-size:10px;color:var(--ink-faint);letter-spacing:.04em}
+.col-head.rail-head{background:var(--ground)}
+.timecol{border-right:1px solid var(--rule);background:var(--ground)}
+.hourmark{height:var(--hour);position:relative;border-bottom:1px solid var(--rule-soft)}
+.hourmark span{position:absolute;top:-8px;right:7px;font-family:var(--mono);
+  font-size:11px;color:var(--ink-faint);background:var(--ground);padding:0 2px}
+.slotcol{position:relative;border-left:1px solid var(--rule-soft)}
+.slot{height:var(--hour);border-bottom:1px solid var(--rule-soft);
+  cursor:cell;transition:background .12s}
+.slot:hover{background:#EDF1EA}
+.appt{position:absolute;left:3px;right:3px;border-radius:3px;
+  padding:5px 7px;overflow:hidden;cursor:pointer;border-left:3px solid;
+  background:#fff;box-shadow:0 1px 2px rgba(23,26,23,.09);text-align:left}
+.appt:hover{box-shadow:0 2px 7px rgba(23,26,23,.17);z-index:5}
+.appt .t{font-family:var(--mono);font-size:10px;color:var(--ink-soft)}
+.appt .who{font-weight:600;font-size:12px;line-height:1.2;margin-top:1px}
+.appt .srv{font-size:11px;color:var(--ink-soft);line-height:1.2}
+.appt.scheduled{border-color:var(--mustard);background:#FDFAF1}
+.appt.confirmed{border-color:var(--pine);background:#F1F6F2}
+.appt.done{border-color:var(--slate);background:#F2F4F5;opacity:.82}
+.appt.cancelled,.appt.no_show{border-color:var(--rule);background:#F6F6F4;opacity:.55}
+.appt.cancelled .who,.appt.no_show .who{text-decoration:line-through}
+/* live "now" line - the signature element of this console */
+.nowline{position:absolute;left:0;right:0;height:0;z-index:12;
+  pointer-events:none;border-top:1.5px solid var(--brick)}
+.nowline::before{content:attr(data-t);position:absolute;left:-56px;top:-9px;
+  font-family:var(--mono);font-size:10px;font-weight:600;
+  background:var(--brick);color:#fff;padding:1px 5px;border-radius:2px}
+.nowline::after{content:'';position:absolute;left:-4px;top:-4px;
+  width:7px;height:7px;border-radius:50%;background:var(--brick)}
+
+/* --------------------------------------------------------------- messages */
+.feed{list-style:none}
+.feed li{padding:8px 0;border-bottom:1px dotted var(--rule-soft);font-size:12px}
+.feed .meta{display:flex;gap:7px;align-items:center;margin-bottom:2px}
+.tag{font-size:9px;letter-spacing:.08em;text-transform:uppercase;font-weight:600;
+  padding:1px 5px;border-radius:2px}
+.tag.reminder{background:#F3EDDC;color:var(--mustard)}
+.tag.repeat_offer{background:#E4EFE6;color:var(--pine)}
+.tag.invoice{background:#E7EBED;color:var(--slate)}
+.tag.pending{background:#F1F3EE;color:var(--ink-faint)}
+.tag.fail{background:#F8ECEA;color:var(--brick)}
+.feed .txt{color:var(--ink-soft);line-height:1.4}
+
+.callink{padding:7px 0;border-bottom:1px dotted var(--rule-soft)}
+.callink .cn{font-weight:500;font-size:13px;display:flex;gap:6px;align-items:baseline}
+.callink .cr{font-size:10px;color:var(--ink-faint);font-weight:400}
+.callink .ca{display:flex;gap:10px;margin-top:3px}
+.callink .ca a,.callink .ca button{font-size:11px;color:var(--pine);
+  text-decoration:none;font-weight:500;padding:0}
+.callink .ca a:hover,.callink .ca button:hover{text-decoration:underline}
+.calhint{font-size:11px;color:var(--ink-faint);margin-top:8px;line-height:1.4}
+
+/* ----------------------------------------------------------------- modals */
+.veil{position:fixed;inset:0;background:rgba(23,26,23,.42);
+  display:flex;align-items:center;justify-content:center;padding:18px;z-index:100}
+.modal{background:var(--paper);border-radius:4px;padding:20px;
+  width:100%;max-width:412px;max-height:88vh;overflow-y:auto;
+  box-shadow:0 12px 40px rgba(23,26,23,.3)}
+.modal h3{font-size:16px;margin-bottom:3px}
+.modal .sub{font-size:12px;color:var(--ink-soft);margin-bottom:15px}
+.modal-actions{display:flex;gap:8px;margin-top:15px}
+.alert{padding:9px 11px;border-radius:3px;font-size:12px;margin-bottom:10px;
+  border-left:3px solid;line-height:1.4}
+.alert.bad{background:#F8ECEA;border-color:var(--brick);color:#7C2B20}
+.alert.good{background:#EDF4EE;border-color:var(--pine);color:#234A3D}
+.empty{padding:26px 16px;text-align:center;color:var(--ink-faint);font-size:12px}
+.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);
+  background:var(--ink);color:#EDEFE9;padding:10px 18px;border-radius:3px;
+  font-size:13px;z-index:200;box-shadow:0 5px 20px rgba(0,0,0,.3)}
+
+/* ------------------------------------------------------- CALL MODE (assist) */
+.callveil{position:fixed;inset:0;background:rgba(23,26,23,.55);
+  display:flex;align-items:flex-start;justify-content:center;
+  padding:26px 18px;z-index:150;overflow-y:auto}
+.callbox{background:var(--paper);border-radius:5px;width:100%;max-width:940px;
+  box-shadow:0 18px 60px rgba(23,26,23,.4);overflow:hidden}
+.callbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+  padding:12px 20px;background:var(--ink);color:#EDEFE9;
+  border-bottom:3px solid var(--brick)}
+.live{display:flex;align-items:center;gap:7px;font-size:11px;
+  letter-spacing:.13em;text-transform:uppercase;font-weight:600;color:#E8B3AA}
+.live i{width:8px;height:8px;border-radius:50%;background:var(--brick);
+  animation:pulse 1.3s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.28}}
+.callbar .num{font-family:var(--mono);font-size:15px}
+.callbar .who{font-size:17px;font-weight:600;margin-left:4px}
+.callbar .x{margin-left:auto;color:#A9B0A6;font-size:22px;line-height:1;padding:0 6px}
+.callbar .x:hover{color:#fff}
+.callgrid{display:grid;grid-template-columns:1fr 1fr}
+@media(max-width:760px){.callgrid{grid-template-columns:1fr}}
+.callcol{padding:16px 20px}
+.callcol+.callcol{border-left:1px solid var(--rule-soft)}
+@media(max-width:760px){.callcol+.callcol{border-left:none;border-top:1px solid var(--rule-soft)}}
+.phrases{list-style:none;margin-bottom:16px}
+.phrases li{font-size:15px;line-height:1.45;padding:9px 12px;margin-bottom:6px;
+  background:#F1F5F1;border-left:3px solid var(--pine);border-radius:0 3px 3px 0}
+.phrases li:first-child{font-weight:600}
+.facts{list-style:none;margin-bottom:14px}
+.facts li{display:flex;gap:10px;padding:6px 0;border-bottom:1px dotted var(--rule-soft)}
+.facts .k{font-size:11px;color:var(--ink-faint);width:118px;flex:none;padding-top:2px}
+.facts .v{font-weight:500;font-size:13px}
+.facts .h{font-size:11px;color:var(--ink-soft)}
+.duebox{border:1px solid var(--mustard);border-left-width:3px;
+  border-radius:0 3px 3px 0;background:#FDFAF1;padding:10px 12px;margin-bottom:8px}
+.duebox.late{border-color:var(--brick);background:#FAEFED}
+.duebox .n{font-weight:600;font-size:14px}
+.duebox .m{font-size:12px;color:var(--ink-soft);margin-top:2px}
+.slotgrid{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.slotbtn{padding:7px 11px;border-radius:3px;font-family:var(--mono);font-size:12px;
+  box-shadow:inset 0 0 0 1px var(--rule);background:#fff}
+.slotbtn:hover{background:var(--pine);color:#fff;box-shadow:none}
+.debtbox{border-left:3px solid var(--brick);background:#FAEFED;padding:9px 12px;
+  border-radius:0 3px 3px 0;font-size:13px;margin-bottom:10px}
+.upnext{border-left:3px solid var(--pine);background:#EDF4EE;padding:9px 12px;
+  border-radius:0 3px 3px 0;font-size:13px;margin-bottom:10px}
+
+/* --------------------------------------------------------------------- MAP */
+#map{height:calc(100vh - 110px);min-height:420px;background:var(--rule-soft)}
+.maphead{display:flex;gap:10px;align-items:center;flex-wrap:wrap;
+  padding:13px 18px;background:var(--paper);border-bottom:1px solid var(--rule)}
+.routebox{position:absolute;right:28px;top:120px;z-index:900;width:258px;
+  background:var(--paper);border-radius:4px;padding:13px 15px;
+  box-shadow:0 4px 18px rgba(23,26,23,.2);max-height:62vh;overflow-y:auto}
+.routebox ol{list-style:none;counter-reset:stop}
+.routebox li{counter-increment:stop;display:flex;gap:9px;padding:6px 0;
+  border-bottom:1px dotted var(--rule-soft);font-size:12px}
+.routebox li::before{content:counter(stop);flex:none;width:19px;height:19px;
+  border-radius:50%;background:var(--pine);color:#fff;font-size:10px;
+  font-weight:700;display:flex;align-items:center;justify-content:center}
+.routesum{font-family:var(--mono);font-size:12px;color:var(--ink-soft);
+  margin:6px 0 10px}
+
+/* ------------------------------------------------------------ INTEGRATIONS */
+.intwrap{padding:20px 22px;max-width:980px}
+.intcard{background:var(--paper);border:1px solid var(--rule);border-radius:4px;
+  padding:16px 18px;margin-bottom:12px;border-left:4px solid var(--rule)}
+.intcard.on{border-left-color:var(--pine)}
+.intcard.mock{border-left-color:var(--mustard)}
+.intcard.off{border-left-color:var(--brick)}
+.inthead{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.inthead b{font-size:16px}
+.badge{font-size:10px;letter-spacing:.08em;text-transform:uppercase;
+  font-weight:700;padding:2px 7px;border-radius:2px}
+.badge.on{background:#E4EFE6;color:var(--pine)}
+.badge.mock{background:#F3EDDC;color:var(--mustard)}
+.badge.off{background:#F8ECEA;color:var(--brick)}
+.intwhere{font-family:var(--mono);font-size:11px;color:var(--ink-faint);
+  margin:7px 0 10px}
+.intneed{list-style:none;font-size:13px}
+.intneed li{padding:4px 0 4px 16px;position:relative;color:var(--ink-soft)}
+.intneed li::before{content:'';position:absolute;left:3px;top:11px;
+  width:5px;height:5px;border-radius:50%;background:var(--rule)}
+.intenv{font-family:var(--mono);font-size:11px;background:#F1F3EE;
+  padding:7px 9px;border-radius:3px;margin-top:10px;color:var(--ink-soft);
+  word-break:break-all}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand"><b>BizOS</b><span>operator console</span></div>
+  <nav class="tenant-tabs" id="tenantTabs"></nav>
+  <nav class="viewtabs" id="viewTabs">
+    <button data-v="day" aria-pressed="true">Schedule</button>
+    <button data-v="map" aria-pressed="false">Map</button>
+    <button data-v="int" aria-pressed="false">Integrations</button>
+  </nav>
+  <div class="clockbox">
+    <div>
+      <div class="eyebrow" style="color:#8C948A"><i class="wsdot" id="wsdot"></i>system time</div>
+      <div class="vtime" id="vtime">—</div>
+    </div>
+    <div class="jump">
+      <button data-jump="1">+1d</button>
+      <button data-jump="7">+7d</button>
+      <button data-jump="30">+30d</button>
+      <button data-jump="reset" title="Back to real time">⟲</button>
+    </div>
+  </div>
+</header>
+
+<div class="shell">
+  <aside class="rail">
+    <section class="panel">
+      <h2>Incoming call</h2>
+      <button class="btn" id="callBtn">Take a call</button>
+    </section>
+
+    <section class="panel">
+      <h2>Find a client</h2>
+      <input class="field" id="search" placeholder="Name or phone" autocomplete="off">
+      <ul class="hitlist" id="hits"></ul>
+    </section>
+
+    <section class="panel" id="cardPanel" style="flex:1">
+      <h2>Client card</h2>
+      <div id="card"><div class="empty">Pick a client<br>or take a call</div></div>
+    </section>
+
+    <section class="panel">
+      <h2>Staff calendars</h2>
+      <div id="calLinks"></div>
+      <div class="calhint">Each person adds their link once; the schedule then
+        keeps itself up to date.</div>
+    </section>
+
+    <section class="panel">
+      <h2>Sent by the system</h2>
+      <ul class="feed" id="feed"></ul>
+    </section>
+  </aside>
+
+  <main class="stage">
+    <!-- SCHEDULE -->
+    <div id="viewDay">
+      <div class="stage-head">
+        <div class="daynav">
+          <button id="prevDay" title="Previous day">‹</button>
+          <button id="nextDay" title="Next day">›</button>
+        </div>
+        <div class="daylabel" id="dayLabel"></div>
+        <button class="btn ghost sm" id="todayBtn">Today</button>
+        <div class="legend">
+          <span><i class="dot scheduled"></i>scheduled</span>
+          <span><i class="dot confirmed"></i>confirmed</span>
+          <span><i class="dot done"></i>done</span>
+        </div>
+      </div>
+      <div class="grid-wrap"><div class="grid" id="grid"></div></div>
+    </div>
+
+    <!-- MAP -->
+    <div id="viewMap" hidden>
+      <div class="maphead">
+        <b id="mapTitle">Map</b>
+        <button class="btn ghost sm" id="geocodeBtn">Geocode addresses</button>
+        <button class="btn ghost sm" id="routeBtn">Tomorrow's route</button>
+        <span class="mono" id="mapAdapter" style="margin-left:auto;font-size:11px;color:var(--ink-faint)"></span>
+      </div>
+      <div id="map"></div>
+      <div class="routebox" id="routeBox" hidden></div>
+    </div>
+
+    <!-- INTEGRATIONS -->
+    <div id="viewInt" hidden>
+      <div class="intwrap" id="intList"></div>
+    </div>
+  </main>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const API = '/api';
+const HOUR_H = 58, DAY_FROM = 8, DAY_TO = 21;
+
+const S = {
+  tenants: [], tenantId: 1, labels: {},
+  resources: [], services: [], clients: [],
+  appts: [], day: null, vnow: null, client: null, view: 'day',
+  map: null, layers: null,
+};
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c =>
+  ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+/* Dates are naive: the server sends no timezone and we do not invent one,
+   or the virtual clock would drift away from the schedule. */
+function parseDT(s){
+  if(!s) return null;
+  const [d,t=''] = s.split('T');
+  const [y,m,dd] = d.split('-').map(Number);
+  const [hh=0,mi=0,ss=0] = t.replace('Z','').split(':').map(Number);
+  return new Date(y, m-1, dd, hh, mi, Math.floor(ss));
+}
+const pad = n => String(n).padStart(2,'0');
+const fmtT = d => pad(d.getHours())+':'+pad(d.getMinutes());
+const fmtD = d => pad(d.getDate())+'.'+pad(d.getMonth()+1);
+const isoNaive = d =>
+  `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:00`;
+const sameDay = (a,b) => a.getFullYear()===b.getFullYear()
+  && a.getMonth()===b.getMonth() && a.getDate()===b.getDate();
+const WD = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const MO = ['January','February','March','April','May','June','July','August',
+            'September','October','November','December'];
+
+async function api(path, opts={}){
+  const r = await fetch(API+path, {...opts,
+    headers:{'Content-Type':'application/json','X-Tenant-Id':S.tenantId,
+             ...(opts.headers||{})}});
+  const body = await r.json().catch(()=>null);
+  if(!r.ok){
+    const d = body && body.detail;
+    throw new Error(typeof d === 'string' ? d : (d ? JSON.stringify(d) : 'Error '+r.status));
+  }
+  return body;
+}
+
+let toastT;
+function toast(msg){
+  document.querySelectorAll('.toast').forEach(e=>e.remove());
+  const el = document.createElement('div');
+  el.className='toast'; el.textContent=msg; document.body.appendChild(el);
+  clearTimeout(toastT); toastT = setTimeout(()=>el.remove(), 3600);
+}
+
+/* ================================================================= bootstrap */
+async function boot(){
+  S.tenants = await api('/tenants');
+  renderTabs();
+  await switchTenant(S.tenants[0].id);
+}
+
+async function switchTenant(id){
+  S.tenantId = id;
+  const t = S.tenants.find(x=>x.id===id);
+  S.labels = t.labels || {};
+  S.client = null;
+  renderTabs();
+  await refreshClock();
+  S.day = new Date(S.vnow.getFullYear(), S.vnow.getMonth(), S.vnow.getDate());
+  const [res, svc, cl] = await Promise.all([
+    api('/resources'), api('/services'), api('/clients')]);
+  S.resources = res; S.services = svc; S.clients = cl;
+  $('card').innerHTML = '<div class="empty">Pick a client<br>or take a call</div>';
+  $('search').value = ''; $('hits').innerHTML = '';
+  await Promise.all([loadDay(), loadFeed(), loadCalLinks()]);
+  connectSocket();
+  if(S.view === 'map') loadMap();
+}
+
+async function refreshClock(){
+  const r = await api('/demo/now');
+  S.vnow = parseDT(r.virtual_now);
+  $('vtime').textContent = fmtD(S.vnow)+' · '+fmtT(S.vnow);
+}
+
+async function loadDay(){
+  const from = new Date(S.day); from.setHours(0,0,0,0);
+  const to = new Date(S.day); to.setHours(23,59,0,0);
+  S.appts = await api(`/appointments?include_past=true&date_from=${isoNaive(from)}&date_to=${isoNaive(to)}`);
+  renderGrid();
+}
+
+async function loadFeed(){
+  const msgs = await api('/messages');
+  const KIND = {reminder:'reminder',repeat_offer:'repeat offer',invoice:'invoice'};
+  $('feed').innerHTML = msgs.slice(0,14).map(m=>{
+    const d = parseDT(m.send_at);
+    const st = m.status === 'sent'
+      ? `<span class="tag ${esc(m.kind)}">${KIND[m.kind]||esc(m.kind)}</span>`
+      : m.status === 'failed'
+      ? `<span class="tag fail">failed</span>`
+      : `<span class="tag pending">queued</span>`;
+    const ch = m.channel==='sms' ? 'SMS' : (m.channel==='telegram'?'TG':esc(m.channel));
+    return `<li><div class="meta">${st}
+      <span class="mono" style="font-size:9px;color:var(--ink-faint);letter-spacing:.06em">${ch}</span>
+      <span class="mono" style="font-size:10px;color:var(--ink-faint)">${fmtD(d)} ${fmtT(d)}</span></div>
+      <div class="txt">${esc((m.rendered_text||'').slice(0,120))}</div></li>`;
+  }).join('') || '<div class="empty">Nothing sent yet</div>';
+}
+
+async function loadCalLinks(){
+  try{
+    const links = await api('/calendar/links');
+    $('calLinks').innerHTML = links.map(l=>{
+      const url = location.origin + l.path;
+      const webcal = url.replace(/^https?:/, 'webcal:');
+      return `<div class="callink">
+        <div class="cn">${esc(l.resource_name)}<span class="cr">${esc(l.role||'')}</span></div>
+        <div class="ca"><a href="${esc(webcal)}">Subscribe</a>
+          <button data-copy="${esc(url)}">Copy link</button></div></div>`;
+    }).join('');
+  }catch(e){ $('calLinks').innerHTML = '<div class="empty">—</div>'; }
+}
+
+function renderTabs(){
+  $('tenantTabs').innerHTML = S.tenants.map(t =>
+    `<button data-t="${t.id}" aria-pressed="${t.id===S.tenantId}">${esc(t.name)}</button>`
+  ).join('');
+}
+
+/* ===================================================================== GRID */
+function renderGrid(){
+  const g = $('grid');
+  const resLabel = S.labels.resource_plural || S.labels.resource || 'Staff';
+
+  if(!S.resources.length){
+    g.style.gridTemplateColumns = '1fr';
+    g.innerHTML = '<div class="empty">No '+esc(resLabel.toLowerCase())+' configured</div>';
+    return;
+  }
+
+  g.style.gridTemplateColumns = `56px repeat(${S.resources.length}, minmax(148px,1fr))`;
+  let html = `<div class="col-head rail-head"></div>` + S.resources.map(r=>
+    `<div class="col-head"><div class="rname">${esc(r.name)}</div>
+     <div class="rrole">${esc(r.role||S.labels.resource||'')}</div></div>`).join('');
+
+  html += '<div class="timecol">';
+  for(let h=DAY_FROM; h<DAY_TO; h++)
+    html += `<div class="hourmark"><span>${pad(h)}:00</span></div>`;
+  html += '</div>';
+
+  for(const r of S.resources){
+    html += `<div class="slotcol" data-res="${r.id}">`;
+    for(let h=DAY_FROM; h<DAY_TO; h++)
+      html += `<div class="slot" data-res="${r.id}" data-h="${h}"></div>`;
+
+    for(const a of S.appts.filter(x=>x.resource_id===r.id)){
+      const st = parseDT(a.starts_at), en = parseDT(a.ends_at);
+      const top = ((st.getHours()-DAY_FROM)*60 + st.getMinutes())/60*HOUR_H;
+      const hgt = Math.max(26, (en-st)/60000/60*HOUR_H - 2);
+      if(top < -HOUR_H || top > (DAY_TO-DAY_FROM)*HOUR_H) continue;
+      const cl = S.clients.find(c=>c.id===a.client_id);
+      const sv = S.services.find(s=>s.id===a.service_id);
+      html += `<button class="appt ${esc(a.status)}" data-appt="${a.id}"
+        style="top:${top}px;height:${hgt}px">
+        <div class="t">${fmtT(st)}–${fmtT(en)}</div>
+        <div class="who">${esc(cl ? (cl.name||cl.phone) : 'client #'+a.client_id)}</div>
+        ${hgt>52?`<div class="srv">${esc(sv?sv.name:'')}</div>`:''}
+      </button>`;
+    }
+
+    if(sameDay(S.vnow, S.day)){
+      const y = ((S.vnow.getHours()-DAY_FROM)*60 + S.vnow.getMinutes())/60*HOUR_H;
+      if(y>=0 && y<=(DAY_TO-DAY_FROM)*HOUR_H)
+        html += `<div class="nowline" style="top:${y}px" data-t="${fmtT(S.vnow)}"></div>`;
+    }
+    html += '</div>';
+  }
+
+  g.innerHTML = html;
+  const d = S.day;
+  $('dayLabel').innerHTML = `${d.getDate()} ${MO[d.getMonth()]} <span class="wd">· ${WD[d.getDay()]}</span>`;
+}
+
+/* ============================================================== client card */
+async function openClient(id){
+  const card = await api(`/clients/${id}/card`);
+  S.client = card;
+  const c = card.client;
+  const aLabel = S.labels.asset_plural || S.labels.asset;
+
+  let h = `<div class="card-head"><b>${esc(c.name||'Unnamed')}</b></div>
+    <div class="card-phone">${esc(c.phone)}</div>`;
+  if(c.address) h += `<div class="card-addr">${esc(c.address)}</div>`;
+  if(c.notes) h += `<div class="card-note">${esc(c.notes)}</div>`;
+
+  if(aLabel && card.assets.length){
+    h += `<div class="eyebrow subhead">${esc(aLabel)}</div>`;
+    h += card.assets.map(a=>{
+      const at = Object.entries(a.attributes||{})
+        .filter(([,v])=>v!==null&&v!=='')
+        .map(([k,v])=>`${esc(k)}: ${esc(v)}`).join(' · ');
+      return `<div class="asset"><div class="t">${esc(a.title)}</div>
+        ${at?`<div class="a">${at}</div>`:''}</div>`;
+    }).join('');
+  }
+
+  h += `<div class="eyebrow subhead">History · ${card.appointments.length}</div>`;
+  h += card.appointments.length
+    ? `<ul class="hist">` + card.appointments.slice(0,12).map(a=>{
+        const d = parseDT(a.starts_at);
+        const sv = S.services.find(s=>s.id===a.service_id);
+        return `<li><i class="dot ${esc(a.status)}"></i>
+          <span class="d">${fmtD(d)} ${fmtT(d)}</span>
+          <span class="s">${esc(sv?sv.name:'service #'+a.service_id)}</span></li>`;
+      }).join('') + `</ul>`
+    : `<div class="empty" style="padding:12px">No visits yet</div>`;
+
+  h += `<button class="btn" style="margin-top:12px" data-book="${c.id}">Book</button>`;
+  $('card').innerHTML = h;
+}
+
+/* ============================================================ booking modal */
+function bookModal({clientId=null, resourceId=null, when=null}={}){
+  const rLabel = S.labels.resource || 'Staff member';
+  const start = when || new Date(S.day.getFullYear(),S.day.getMonth(),S.day.getDate(),10,0);
+
+  const veil = document.createElement('div');
+  veil.className='veil';
+  veil.innerHTML = `<div class="modal">
+    <h3>New ${esc((S.labels.appointment||'booking').toLowerCase())}</h3>
+    <div class="sub">The slot is checked before it is saved</div>
+    <div id="mAlert"></div>
+    <label class="lbl">Client</label>
+    <select class="field" id="mClient">
+      ${S.clients.map(c=>`<option value="${c.id}" ${c.id===clientId?'selected':''}>
+        ${esc(c.name||'—')} · ${esc(c.phone)}</option>`).join('')}
+    </select>
+    <label class="lbl">Service</label>
+    <select class="field" id="mService">
+      ${S.services.map(s=>`<option value="${s.id}">${esc(s.name)} · ${s.duration_min} min · ${s.price} UAH</option>`).join('')}
+    </select>
+    <label class="lbl">${esc(rLabel)}</label>
+    <select class="field" id="mRes">
+      ${S.resources.map(r=>`<option value="${r.id}" ${r.id===resourceId?'selected':''}>${esc(r.name)}</option>`).join('')}
+    </select>
+    <label class="lbl">Date and time</label>
+    <input class="field" id="mWhen" type="datetime-local" value="${isoNaive(start).slice(0,16)}">
+    <div class="modal-actions">
+      <button class="btn" id="mSave">Book</button>
+      <button class="btn ghost" id="mCancel">Cancel</button>
+    </div>
+  </div>`;
+  document.body.appendChild(veil);
+
+  const close = ()=>veil.remove();
+  veil.addEventListener('click', e=>{ if(e.target===veil) close(); });
+  veil.querySelector('#mCancel').onclick = close;
+
+  async function check(){
+    try{
+      const q = new URLSearchParams({
+        service_id: veil.querySelector('#mService').value,
+        starts_at: veil.querySelector('#mWhen').value+':00',
+        resource_id: veil.querySelector('#mRes').value});
+      const r = await api('/appointments/check-slot?'+q);
+      veil.querySelector('#mAlert').innerHTML = r.free
+        ? `<div class="alert good">Free</div>`
+        : `<div class="alert bad">${esc(r.reason)}</div>`;
+    }catch(e){}
+  }
+  ['#mWhen','#mRes','#mService'].forEach(s=>veil.querySelector(s).onchange=check);
+  check();
+
+  veil.querySelector('#mSave').onclick = async ()=>{
+    const clientId2 = +veil.querySelector('#mClient').value;
+    let assetId = null;
+    try{
+      const card = await api(`/clients/${clientId2}/card`);
+      if(card.assets.length) assetId = card.assets[0].id;
+    }catch(e){}
+    try{
+      await api('/appointments', {method:'POST', body: JSON.stringify({
+        client_id: clientId2,
+        service_id: +veil.querySelector('#mService').value,
+        resource_id: +veil.querySelector('#mRes').value,
+        asset_id: assetId,
+        starts_at: veil.querySelector('#mWhen').value+':00',
+        source: 'operator'})});
+      close();
+      toast('Booked. A reminder is scheduled 48 hours ahead');
+      await Promise.all([loadDay(), loadFeed()]);
+    }catch(e){
+      veil.querySelector('#mAlert').innerHTML = `<div class="alert bad">${esc(e.message)}</div>`;
+    }
+  };
+}
+
+/* ======================================================== appointment modal */
+function gcalLink(a, cl, sv, rs){
+  const z = d => `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}`
+                 + `T${pad(d.getHours())}${pad(d.getMinutes())}00`;
+  const st = parseDT(a.starts_at), en = parseDT(a.ends_at);
+  const who = cl ? (cl.name || cl.phone) : 'client';
+  const p = new URLSearchParams({
+    action:'TEMPLATE', text: `${sv?sv.name:'Visit'} - ${who}`,
+    dates: `${z(st)}/${z(en)}`,
+    details: [`Client: ${who}`, cl?`Phone: ${cl.phone}`:'',
+              rs?`With: ${rs.name}`:'' ].filter(Boolean).join('\n'),
+    location: (S.tenants.find(t=>t.id===S.tenantId)||{}).name || ''});
+  return 'https://calendar.google.com/calendar/render?'+p;
+}
+
+function apptModal(id){
+  const a = S.appts.find(x=>x.id===id); if(!a) return;
+  const cl = S.clients.find(c=>c.id===a.client_id);
+  const sv = S.services.find(s=>s.id===a.service_id);
+  const rs = S.resources.find(r=>r.id===a.resource_id);
+  const st = parseDT(a.starts_at), en = parseDT(a.ends_at);
+  const STN = {scheduled:'scheduled',confirmed:'confirmed',done:'done',
+               cancelled:'cancelled',no_show:'no-show'};
+
+  const veil = document.createElement('div');
+  veil.className='veil';
+  veil.innerHTML = `<div class="modal">
+    <h3>${esc(cl?(cl.name||cl.phone):'Client #'+a.client_id)}</h3>
+    <div class="sub mono">${fmtD(st)} · ${fmtT(st)}–${fmtT(en)} · ${esc(rs?rs.name:'')}</div>
+    <div class="alert good" style="border-color:var(--rule);background:#F1F3EE;color:var(--ink-soft)">
+      ${esc(sv?sv.name:'')} · ${sv?sv.price:0} UAH<br>
+      <span class="mono" style="font-size:11px">status: ${esc(STN[a.status]||a.status)}</span>
+    </div>
+    <div class="eyebrow" style="margin-bottom:6px">Add to calendar</div>
+    <div class="modal-actions" style="flex-wrap:wrap;margin-top:0;margin-bottom:14px">
+      <a class="btn ghost sm" style="text-decoration:none;display:inline-block"
+         href="${API}/appointments/${a.id}/ics" download>Download .ics</a>
+      <a class="btn ghost sm" style="text-decoration:none;display:inline-block"
+         href="${gcalLink(a, cl, sv, rs)}" target="_blank" rel="noopener">Google Calendar</a>
+    </div>
+    <div class="modal-actions" style="flex-wrap:wrap">
+      ${a.status==='scheduled'?`<button class="btn ghost sm" data-st="confirmed">Confirm</button>`:''}
+      ${a.status!=='done'&&a.status!=='cancelled'?`<button class="btn sm" data-st="done">Mark as done</button>`:''}
+      ${a.status!=='cancelled'&&a.status!=='done'?`<button class="btn brick sm" data-st="cancelled">Cancel</button>`:''}
+      <button class="btn ghost sm" id="aClose">Close</button>
+    </div>
+  </div>`;
+  document.body.appendChild(veil);
+  const close = ()=>veil.remove();
+  veil.addEventListener('click', e=>{ if(e.target===veil) close(); });
+  veil.querySelector('#aClose').onclick = close;
+
+  veil.querySelectorAll('[data-st]').forEach(b=>b.onclick = async ()=>{
+    try{
+      await api(`/appointments/${id}/status`, {method:'POST',
+        body: JSON.stringify({status:b.dataset.st})});
+      close();
+      toast(b.dataset.st==='done'
+        ? 'Visit closed: invoice raised, repeat offer scheduled'
+        : 'Status updated');
+      await Promise.all([loadDay(), loadFeed()]);
+      if(S.client) openClient(S.client.client.id);
+    }catch(e){ toast(e.message); }
+  });
+}
+
+/* ================================================== CALL MODE (assist) === */
+let ws = null;
+function connectSocket(){
+  if(ws){ try{ ws.close(); }catch(e){} }
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  ws = new WebSocket(`${proto}://${location.host}${API}/ws/panel/${S.tenantId}`);
+  ws.onopen = ()=> $('wsdot').classList.add('on');
+  ws.onclose = ()=>{ $('wsdot').classList.remove('on'); setTimeout(connectSocket, 3000); };
+  ws.onmessage = e=>{
+    const ev = JSON.parse(e.data);
+    if(ev.type === 'incoming_call') showCall(ev.brief);
+  };
+}
+
+function showCall(b){
+  document.querySelectorAll('.callveil').forEach(e=>e.remove());
+  const L = b.labels || {};
+  const facts = (b.facts||[]).map(f=>
+    `<li><span class="k">${esc(f.label)}</span>
+      <span><span class="v">${esc(f.value)}</span>
+      ${f.hint?`<span class="h"> — ${esc(f.hint)}</span>`:''}</span></li>`).join('');
+
+  const assets = (b.assets||[]).map(a=>{
+    const at = Object.entries(a.attributes||{}).filter(([,v])=>v!==null&&v!=='')
+      .map(([k,v])=>`${esc(k)}: ${esc(v)}`).join(' · ');
+    return `<div class="asset"><div class="t">${esc(a.title)}</div>
+      ${at?`<div class="a">${at}</div>`:''}</div>`;
+  }).join('');
+
+  const due = (b.due||[]).map(d=>
+    `<div class="duebox ${d.overdue_days>0?'late':''}">
+      <div class="n">${esc(d.service_name)} — ${esc(d.status)}</div>
+      <div class="m">${d.days_since} days since last, interval ${d.interval} days
+        ${d.overdue_days>0?`· ${d.overdue_days} days overdue`:''} · ${d.price} UAH</div>
+    </div>`).join('');
+
+  const slots = (b.free_slots||[]).map(sl=>
+    `<button class="slotbtn" data-slot="${esc(sl.starts_at)}"
+      data-res="${sl.resource_id}">${esc(sl.human)}</button>`).join('');
+
+  const veil = document.createElement('div');
+  veil.className = 'callveil';
+  veil.innerHTML = `<div class="callbox">
+    <div class="callbar">
+      <span class="live"><i></i>on call</span>
+      <span class="num">${esc(b.phone)}</span>
+      <span class="who">${esc(b.headline)}</span>
+      <button class="x" id="callClose" title="Close">×</button>
+    </div>
+    <div class="callgrid">
+      <div class="callcol">
+        <div class="eyebrow">What to say</div>
+        <ul class="phrases">${(b.phrases||[]).map(p=>`<li>${esc(p)}</li>`).join('')}</ul>
+        ${b.upcoming?`<div class="upnext"><b>Already booked:</b> ${esc(b.upcoming.human)}
+          — ${esc(b.upcoming.service_name||'')}</div>`:''}
+        ${(b.debts||[]).length?`<div class="debtbox"><b>Unpaid:</b>
+          ${b.debts.map(d=>`${d.amount} UAH from ${esc(d.issued_at)}`
+            + (d.pay_link?` · <a href="${esc(d.pay_link)}" target="_blank" rel="noopener">payment link</a>`:'')
+          ).join(', ')}</div>`:''}
+      </div>
+      <div class="callcol">
+        ${facts?`<div class="eyebrow">File</div><ul class="facts">${facts}</ul>`:''}
+        ${assets?`<div class="eyebrow subhead">${esc(L.asset_plural||L.asset||'Assets')}</div>${assets}`:''}
+        ${due?`<div class="eyebrow subhead">Due now</div>${due}`:''}
+        <div class="eyebrow subhead">Free slots</div>
+        <div class="slotgrid">${slots||'<span class="h">no slots found</span>'}</div>
+        <div style="margin-top:14px;display:flex;gap:8px">
+          ${b.known?`<button class="btn ghost sm" id="callCard">Open client card</button>`
+                   :`<button class="btn sm" id="callNew">Create client</button>`}
+        </div>
+      </div>
+    </div>
+  </div>`;
+  document.body.appendChild(veil);
+
+  const close = ()=>veil.remove();
+  veil.querySelector('#callClose').onclick = close;
+  veil.addEventListener('click', e=>{ if(e.target===veil) close(); });
+
+  const cardBtn = veil.querySelector('#callCard');
+  if(cardBtn) cardBtn.onclick = ()=>{ close(); openClient(b.client.id); };
+
+  const newBtn = veil.querySelector('#callNew');
+  if(newBtn) newBtn.onclick = async ()=>{
+    const name = prompt('Client name:') || null;
+    const r = await api('/clients', {method:'POST',
+      body: JSON.stringify({phone:b.phone, name})});
+    S.clients = await api('/clients');
+    close(); await openClient(r.client.id);
+    toast(r.created ? 'Client created' : r.message);
+  };
+
+  veil.querySelectorAll('[data-slot]').forEach(btn=>btn.onclick = ()=>{
+    const when = parseDT(btn.dataset.slot);
+    close();
+    bookModal({clientId: b.known ? b.client.id : null,
+               resourceId: +btn.dataset.res, when});
+  });
+}
+
+/* =================================================================== MAP == */
+async function loadMap(){
+  const data = await api('/maps/overview');
+  $('mapAdapter').textContent = 'adapter: ' + data.adapter;
+  $('mapTitle').textContent = data.tenant.name;
+
+  if(data.adapter === 'null'){
+    $('map').innerHTML = `<div class="empty" style="padding:60px 20px">
+      Maps are not connected.<br>Start with <span class="mono">MAPS_ADAPTER=mock</span>
+      and run the mapping mock.</div>`;
+    return;
+  }
+
+  if(!S.map){
+    S.map = L.map('map', {zoomControl:true});
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+      {maxZoom:19, attribution:'© OpenStreetMap'}).addTo(S.map);
+    S.layers = L.layerGroup().addTo(S.map);
+  }
+  S.layers.clearLayers();
+
+  const pts = [];
+  // service zones
+  const zc = data.zones && data.zones.center;
+  if(zc && data.zones.zones){
+    const palette = ['#2E5B4C','#937019','#A63A2B'];
+    data.zones.zones.slice().reverse().forEach((z,i)=>{
+      L.circle([zc.lat, zc.lon], {radius: z.radius_km*1000,
+        color: palette[(data.zones.zones.length-1-i)%3], weight:1,
+        fillOpacity:0.04})
+        .bindTooltip(`${z.name} · up to ${z.radius_km} km · callout ${z.surcharge} UAH`)
+        .addTo(S.layers);
+    });
+  }
+
+  // provider network nodes
+  (data.nodes||[]).forEach(n=>{
+    L.marker([n.lat, n.lon], {icon: L.divIcon({className:'', html:
+      `<div style="width:13px;height:13px;background:#3B4A54;border:2px solid #fff;
+       border-radius:2px;box-shadow:0 1px 4px rgba(0,0,0,.4)"></div>`,
+      iconSize:[13,13]})})
+      .bindPopup(`<b>${n.name}</b><br>${n.kind}`).addTo(S.layers);
+    pts.push([n.lat, n.lon]);
+  });
+
+  // the premises
+  const t = data.tenant;
+  if(t.lat){
+    L.marker([t.lat, t.lon], {icon: L.divIcon({className:'', html:
+      `<div style="width:18px;height:18px;background:#A63A2B;border:3px solid #fff;
+       border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,.4)"></div>`,
+      iconSize:[18,18]})})
+      .bindPopup(`<b>${t.name}</b>`).addTo(S.layers);
+    pts.push([t.lat, t.lon]);
+  }
+
+  // clients
+  (data.clients||[]).forEach(c=>{
+    L.circleMarker([c.lat, c.lon], {radius:6, color:'#2E5B4C', weight:2,
+      fillColor:'#fff', fillOpacity:1})
+      .bindPopup(`<b>${c.name||c.phone}</b><br>${c.address||''}`)
+      .on('click', ()=>openClient(c.id))
+      .addTo(S.layers);
+    pts.push([c.lat, c.lon]);
+  });
+
+  if(pts.length) S.map.fitBounds(pts, {padding:[40,40]});
+  else S.map.setView([50.45, 30.52], 11);
+  setTimeout(()=>S.map.invalidateSize(), 60);
+}
+
+async function showRoute(){
+  const tmr = new Date(S.vnow); tmr.setDate(tmr.getDate()+1);
+  const date = `${tmr.getFullYear()}-${pad(tmr.getMonth()+1)}-${pad(tmr.getDate())}`;
+  let r;
+  try{ r = await api('/maps/route?date='+date); }
+  catch(e){ toast(e.message); return; }
+
+  if(!r.route || !r.points.length){
+    $('routeBox').hidden = false;
+    $('routeBox').innerHTML = `<div class="eyebrow">Route for ${date}</div>
+      <div class="empty" style="padding:14px 0">${esc(r.note||'no on-site bookings')}</div>`;
+    return;
+  }
+
+  const ordered = r.route.order.map(i=>r.points[i]);
+  $('routeBox').hidden = false;
+  $('routeBox').innerHTML = `<div class="eyebrow">Crew route · ${date}</div>
+    <div class="routesum">${r.route.distance_km} km · ${r.route.duration_min} min</div>
+    <ol>${ordered.map(p=>`<li><div><b>${esc(p.client_name||'')}</b><br>
+      <span style="color:var(--ink-soft)">${esc(p.address||'')} · ${esc(p.at.slice(11))}</span>
+      </div></li>`).join('')}</ol>`;
+
+  // draw the route line over the map
+  const line = ordered.map(p=>[p.lat, p.lon]);
+  L.polyline(line, {color:'#A63A2B', weight:3, dashArray:'6 5'}).addTo(S.layers);
+  ordered.forEach((p,i)=>{
+    L.marker([p.lat,p.lon], {icon: L.divIcon({className:'', html:
+      `<div style="width:22px;height:22px;background:#2E5B4C;color:#fff;
+       border:2px solid #fff;border-radius:50%;font:700 11px/18px system-ui;
+       text-align:center;box-shadow:0 2px 5px rgba(0,0,0,.35)">${i+1}</div>`,
+      iconSize:[22,22]})}).addTo(S.layers);
+  });
+  S.map.fitBounds(line, {padding:[60,60]});
+}
+
+/* ========================================================== INTEGRATIONS == */
+async function loadIntegrations(){
+  const data = await api('/integrations/status');
+  const ORDER = ['billing','maps','telephony','sms','messaging','speech'];
+  $('intList').innerHTML = ORDER.map(k=>{
+    const v = data[k]; if(!v) return '';
+    const mock = (v.adapter||'').startsWith('mock');
+    const cls = v.production ? 'on' : (mock ? 'mock' : 'off');
+    const label = v.production ? 'connected' : (mock ? 'mock' : 'not connected');
+    const health = v.health ? (v.health.error || v.health.note || '') : '';
+    return `<div class="intcard ${cls}">
+      <div class="inthead"><b>${esc(v.name)}</b>
+        <span class="badge ${cls}">${label}</span>
+        <span class="mono" style="font-size:11px;color:var(--ink-faint)">${esc(v.adapter)}</span>
+      </div>
+      ${health?`<div style="font-size:12px;color:var(--ink-soft);margin-top:5px">${esc(health)}</div>`:''}
+      <div class="intwhere">${esc(v.where_in_code)}</div>
+      <div class="eyebrow">What is needed to connect</div>
+      <ul class="intneed">${(v.needed_to_connect||[]).map(n=>`<li>${esc(n)}</li>`).join('')}</ul>
+      ${v.env?`<div class="intenv">${esc(v.env)}</div>`:''}
+    </div>`;
+  }).join('');
+}
+
+/* =============================================================== handlers == */
+$('tenantTabs').onclick = e=>{
+  const b = e.target.closest('[data-t]'); if(b) switchTenant(+b.dataset.t);
+};
+
+$('viewTabs').onclick = e=>{
+  const b = e.target.closest('[data-v]'); if(!b) return;
+  S.view = b.dataset.v;
+  [...$('viewTabs').children].forEach(x=>
+    x.setAttribute('aria-pressed', x.dataset.v===S.view));
+  $('viewDay').hidden = S.view!=='day';
+  $('viewMap').hidden = S.view!=='map';
+  $('viewInt').hidden = S.view!=='int';
+  if(S.view==='map') loadMap();
+  if(S.view==='int') loadIntegrations();
+};
+
+document.querySelector('.jump').onclick = async e=>{
+  const b = e.target.closest('[data-jump]'); if(!b) return;
+  if(b.dataset.jump === 'reset'){
+    await api('/demo/reset-clock', {method:'POST'});
+    toast('Clock reset to real time');
+  }else{
+    const r = await api('/demo/timetravel', {method:'POST',
+      body: JSON.stringify({days:+b.dataset.jump})});
+    toast(`Jumped ${b.dataset.jump} days. Messages sent: ${r.messages_dispatched}`);
+  }
+  await refreshClock();
+  S.day = new Date(S.vnow.getFullYear(), S.vnow.getMonth(), S.vnow.getDate());
+  await Promise.all([loadDay(), loadFeed()]);
+};
+
+let searchT;
+$('search').oninput = e=>{
+  clearTimeout(searchT);
+  const q = e.target.value.trim();
+  searchT = setTimeout(async ()=>{
+    if(!q){ $('hits').innerHTML=''; return; }
+    const list = await api('/clients?q='+encodeURIComponent(q));
+    $('hits').innerHTML = list.slice(0,20).map(c=>
+      `<li><button data-cl="${c.id}"><span class="nm">${esc(c.name||'Unnamed')}</span>
+       <span class="ph">${esc(c.phone)}</span></button></li>`).join('')
+      || '<div class="empty" style="padding:10px">Nobody found</div>';
+  }, 220);
+};
+
+$('hits').onclick = e=>{
+  const b = e.target.closest('[data-cl]'); if(b) openClient(+b.dataset.cl);
+};
+
+$('card').onclick = e=>{
+  const b = e.target.closest('[data-book]');
+  if(b) bookModal({clientId:+b.dataset.book});
+};
+
+$('calLinks').onclick = e=>{
+  const b = e.target.closest('[data-copy]'); if(!b) return;
+  navigator.clipboard.writeText(b.dataset.copy)
+    .then(()=>toast('Link copied - paste it into your calendar app'))
+    .catch(()=>prompt('Copy this link:', b.dataset.copy));
+};
+
+/* This button stands in for Asterisk: it calls the SAME webhook the
+   phone system will call. */
+$('callBtn').onclick = async ()=>{
+  const sample = S.clients[Math.floor(Math.random()*S.clients.length)];
+  const phone = prompt('Caller number:', sample ? sample.phone : '+380');
+  if(!phone) return;
+  const q = new URLSearchParams({phone, tenant_id: S.tenantId});
+  const r = await fetch(`${API}/telephony/incoming?${q}`, {method:'POST'});
+  const data = await r.json();
+  if(!data.delivered_to_panels) showCall(data.brief);
+};
+
+$('grid').onclick = e=>{
+  const a = e.target.closest('[data-appt]');
+  if(a){ apptModal(+a.dataset.appt); return; }
+  const s = e.target.closest('.slot');
+  if(s){
+    const when = new Date(S.day.getFullYear(), S.day.getMonth(), S.day.getDate(),
+                          +s.dataset.h, 0);
+    bookModal({resourceId:+s.dataset.res, when,
+               clientId: S.client?S.client.client.id:null});
+  }
+};
+
+$('prevDay').onclick = ()=>{ S.day.setDate(S.day.getDate()-1); loadDay(); };
+$('nextDay').onclick = ()=>{ S.day.setDate(S.day.getDate()+1); loadDay(); };
+$('todayBtn').onclick = ()=>{
+  S.day = new Date(S.vnow.getFullYear(), S.vnow.getMonth(), S.vnow.getDate());
+  loadDay();
+};
+
+$('geocodeBtn').onclick = async ()=>{
+  try{
+    const r = await api('/maps/geocode-clients', {method:'POST'});
+    toast(`Geocoded ${r.geocoded} of ${r.processed}`);
+    loadMap();
+  }catch(e){ toast(e.message); }
+};
+
+$('routeBtn').onclick = showRoute;
+
+boot().catch(e=>{
+  document.body.innerHTML = `<div style="padding:40px;font-family:system-ui">
+    <h2>Could not reach the server</h2>
+    <p style="color:#5C635A;margin-top:8px">${esc(e.message)}</p>
+    <p style="color:#5C635A;margin-top:8px">Check that uvicorn is running and the database has been seeded.</p></div>`;
+});
+</script>
+</body>
+</html>
