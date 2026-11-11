@@ -1,0 +1,60 @@
+# Vertical: auto repair shop
+title: "Auto Repair Shop"
+
+labels:
+  asset: "Vehicle"
+  asset_plural: "Vehicles"
+  appointment: "Service visit"
+  client: "Customer"
+  resource: "Bay"
+  resource_plural: "Bays"
+
+asset_type: car
+resource_required: true
+
+work_hours: {start: 9, end: 19}
+work_days: [1, 2, 3, 4, 5, 6]
+reminder_hours_before: 48
+
+asset_fields:
+  - {key: plate,   label: "Plate number", type: string, required: true}
+  - {key: brand,   label: "Make / model", type: string, required: true}
+  - {key: year,    label: "Year",         type: int}
+  - {key: vin,     label: "VIN",          type: string}
+  - {key: mileage, label: "Mileage, km",  type: int}
+
+# How people SAY these services out loud. Customers never use the catalogue
+# name — they say "swap my tyres". Used by the call-assist engine.
+service_synonyms:
+  "Seasonal tyre change": [tyre, tire, wheels, winter tyre, summer tyre, swap my t, rims]
+  "Full service": [full service, servic, maintenance, scheduled]
+  "Oil change": [oil, oil chang]
+  "Diagnostics": [diagnost, check engine, rattl, strange noise, look at]
+  "Mobile oil change": [come to me, mobile, at my place, callout, on site]
+
+default_resources:
+  - {name: "Bay 1", role: "Mechanical"}
+  - {name: "Bay 2", role: "Mechanical"}
+  - {name: "Mobile crew", role: "On-site", mobile: true}
+
+default_services:
+  - {name: "Full service",         duration_min: 120, price: 3500, repeat_days: 180}
+  - {name: "Oil change",           duration_min: 45,  price: 900,  repeat_days: 180}
+  - {name: "Seasonal tyre change", duration_min: 60,  price: 1200, repeat_days: 182}
+  - {name: "Diagnostics",          duration_min: 60,  price: 800}
+  - {name: "Mobile oil change",    duration_min: 90,  price: 1500, repeat_days: 180, onsite: true}
+
+templates:
+  # SMS versions are deliberately short — see TESTING.md on segment cost.
+  reminder_sms: "{client.name}, reminder: {when} - {service.name}. {tenant}"
+  repeat_offer_sms: "{client.name}, {service.name} is due. Book a slot? {tenant}"
+  invoice_sms: "{client.name}, invoice {amount} UAH: {pay_link}"
+  reminder: >-
+    Hello {client.name}! Reminder: your {asset.title} is booked for
+    "{service.name}" on {when} ({resource.name}).
+  repeat_offer: >-
+    Hello {client.name}! Your {asset.title} is due for "{service.name}".
+    Next available: {slots}
+  invoice: >-
+    {client.name}, thanks for your visit. Invoice for "{service.name}":
+    {amount} UAH. Pay here: {pay_link}

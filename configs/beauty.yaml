@@ -1,0 +1,50 @@
+# Vertical: beauty salon
+title: "Beauty Salon"
+
+labels:
+  asset: null            # the service is performed on the client themselves
+  appointment: "Appointment"
+  client: "Client"
+  resource: "Stylist"
+  resource_plural: "Stylists"
+
+asset_type: null
+asset_fields: []
+resource_required: true
+
+work_hours: {start: 10, end: 20}
+work_days: [1, 2, 3, 4, 5, 6, 7]
+reminder_hours_before: 48
+
+service_synonyms:
+  "Manicure": [manicure, nails, gel nails]
+  "Pedicure": [pedicure, toes]
+  "Colour": [colour, color, dye, highlights, roots, tint]
+  "Haircut": [haircut, cut, trim]
+  "Brow shaping": [brow, eyebrow]
+
+default_resources:
+  - {name: "Olha",  role: "Nail technician"}
+  - {name: "Anna",  role: "Colourist"}
+  - {name: "Irene", role: "Hair stylist"}
+
+default_services:
+  - {name: "Manicure",     duration_min: 90,  price: 600,  repeat_days: 21}
+  - {name: "Pedicure",     duration_min: 90,  price: 800,  repeat_days: 28}
+  - {name: "Colour",       duration_min: 180, price: 2500, repeat_days: 42}
+  - {name: "Haircut",      duration_min: 60,  price: 500,  repeat_days: 35}
+  - {name: "Brow shaping", duration_min: 40,  price: 350,  repeat_days: 21}
+
+templates:
+  reminder_sms: "{client.name}, see you {when} - {service.name}. {tenant}"
+  repeat_offer_sms: "{client.name}, time to refresh your {service.name}? {tenant}"
+  invoice_sms: "{client.name}, {amount} UAH due: {pay_link}"
+  reminder: >-
+    {client.name}, reminder about your appointment on {when} -
+    "{service.name}" with {resource.name}. See you then!
+  repeat_offer: >-
+    {client.name}, it has been {days} days since your {service.name} -
+    time to refresh. Available slots: {slots}
+  invoice: >-
+    {client.name}, thanks for visiting. Amount due: {amount} UAH.
+    Pay here: {pay_link}

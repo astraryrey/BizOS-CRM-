@@ -1,0 +1,54 @@
+# Vertical: veterinary practice
+title: "Veterinary Practice"
+
+labels:
+  asset: "Pet"
+  asset_plural: "Pets"
+  appointment: "Consultation"
+  client: "Owner"
+  resource: "Vet"
+  resource_plural: "Vets"
+
+asset_type: pet
+resource_required: true
+
+work_hours: {start: 9, end: 18}
+work_days: [1, 2, 3, 4, 5, 6]
+reminder_hours_before: 48
+
+asset_fields:
+  - {key: species,   label: "Species",       type: string, required: true}
+  - {key: breed,     label: "Breed",         type: string}
+  - {key: birthdate, label: "Date of birth", type: date}
+  - {key: weight,    label: "Weight, kg",    type: float}
+  - {key: chip,      label: "Microchip no.", type: string}
+
+service_synonyms:
+  "Vaccination (full course)": [vaccin, jab, shot, immunis]
+  "Parasite treatment": [parasit, worm, flea, tick]
+  "Routine check-up": [check, checkup, look at, routine, examin]
+  "Nail clipping": [nail, claw, clip]
+
+default_resources:
+  - {name: "Dr Kovalchuk", role: "General practice"}
+  - {name: "Dr Melnyk",    role: "Surgery"}
+
+default_services:
+  - {name: "Vaccination (full course)", duration_min: 30, price: 700, repeat_days: 365}
+  - {name: "Parasite treatment",        duration_min: 20, price: 300, repeat_days: 90}
+  - {name: "Routine check-up",          duration_min: 30, price: 400, repeat_days: 180}
+  - {name: "Nail clipping",             duration_min: 15, price: 150, repeat_days: 45}
+
+templates:
+  reminder_sms: "{client.name}, {asset.title} is booked {when}: {service.name}. {tenant}"
+  repeat_offer_sms: "{client.name}, {asset.title} is due: {service.name}. {tenant}"
+  invoice_sms: "{client.name}, {amount} UAH due: {pay_link}"
+  reminder: >-
+    {client.name}, reminder: {asset.title} is booked for "{service.name}"
+    on {when} with {resource.name}. See you then!
+  repeat_offer: >-
+    {client.name}, {asset.title} is due for "{service.name}".
+    Available slots: {slots}
+  invoice: >-
+    {client.name}, thanks for bringing {asset.title} in. Amount due:
+    {amount} UAH. Pay here: {pay_link}
